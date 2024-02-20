@@ -94,5 +94,88 @@ module "vmss_network" {
 
 module "argocd" {
   source = "./modules/argocd"
+
+  argocd_namespace    = "argocd"
+  server_service_type = "NodePort"
 }
 
+module "grafana" {
+  source = "./modules/grafana"
+
+  grafana_namespace = "grafana"
+  service_type      = "NodePort"
+}
+
+
+module "prometheus" {
+  source = "./modules/prometheus"
+
+  prometheus_namespace = "prometheus"
+  service_type         = "NodePort"
+}
+
+module "azure_ssh_key" {
+  source              = "./modules/azure_ssh_key"
+  prefix              = "myproject"
+  location            = azurerm_resource_group.my_rg.location
+  resource_group_name = azurerm_resource_group.my_rg.name
+  separator           = "-"
+}
+
+provider "azurerm" {
+  features {}
+}
+
+terraform {
+  required_version = ">=0.12"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~>3.0"
+    }
+    azuread = {
+      version = ">= 2.26.0" 
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0.3"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.1.0"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
+    }
+    azapi = {
+      source  = "azure/azapi"
+      version = "~> 1.12.0"
+    }
+  }
+}
+
+provider "kubectl" {
+  config_path    = "~/.kube/config"
+  config_context = "cluster-exciting-catfish"
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = "https://dns-handy-baboon-xdksfsgf.hcp.koreacentral.azmk8s.io" # 수정됨
+    client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.client_certificate)
+    client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.client_key)
+    cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.cluster_ca_certificate)
+  }
+}
+
+provider "kubernetes" {
+  host                   = "https://dns-handy-baboon-xdksfsgf.hcp.koreacentral.azmk8s.io" # 수정됨
+  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.client_certificate)
+  client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.client_key)
+  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_config.0.cluster_ca_certificate)
+}
+
+output "gateway_frontend_ip" {
+  value = "http://${azurerm_public_ip.appgw_public_ip.ip_address}"
+}
